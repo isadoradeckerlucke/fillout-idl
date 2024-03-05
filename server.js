@@ -1,10 +1,10 @@
 const express = require("express");
 const axios = require("axios");
+require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-const apiKey =
-  "sk_prod_TfMbARhdgues5AuIosvvdAC9WsA5kXiZlW8HZPaRDlIbCpSpLsXBeZO7dCVZQwHAY3P4VSBPiiC33poZ1tdUj2ljOzdTCCOSpUZ_3912";
+const apiKey = process.env.API_KEY;
 
 function applyFilters(responses, filters) {
   return responses.filter((response) => {
