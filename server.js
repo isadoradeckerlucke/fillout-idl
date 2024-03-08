@@ -7,10 +7,10 @@ const port = process.env.PORT || 3000;
 const apiKey = process.env.API_KEY;
 
 function applyFilters(responses, filters) {
-  return responses.filter((response) => {
+  responses.filter((r) => {
     return filters.every((filter) => {
       const { id, condition, value } = filter;
-      const q = response.questions.find((question) => question.id === id);
+      const q = r.questions.find((question) => question.id === id);
       if (!q) return false;
 
       switch (condition) {
@@ -32,19 +32,44 @@ function applyFilters(responses, filters) {
 app.get("/:formId/filteredResponses", async (req, res) => {
   try {
     const formId = req.params.formId;
-    const filters = req.query.filters;
+    const apiUrl = `https://api.fillout.com/v1/api/forms/${formId}/submissions`;
+
+    // don't want to throw an error if they don't enter any params, all params are optional
+    if (!req.query) {
+      const genericResult = await axios.get(apiUrl, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      res.json(genericResult);
+    }
+    const { filters, afterDate, beforeDate } = req.query;
+    const limit = req.query.limit || 150;
+    const offset = req.query.offset || 0;
+    const status = req.query.status || "finished";
+    const includeEditLink = req.query.includeEditLink || false;
+    const sort = req.query.sort || "asc";
 
     const parsedFilters = JSON.parse(filters);
-    const apiUrl = `https://www.fillout.com/api/forms/${formId}/responses`;
+    const response = await axios.get(apiUrl, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      params: {
+        limit,
+        afterDate,
+        beforeDate,
+        offset,
+        status,
+        includeEditLink,
+        sort,
+      },
+    });
 
-    const res = await axios.get(apiUrl, { Authorization: `Bearer ${apiKey}` });
-
-    const filteredResponses = applyFilters(res.data.responses, parsedFilters);
-
+    const data = response.data;
+    const filteredResponses = applyFilters(data.responses, parsedFilters);
+    if (!filteredResponses)
+      console.log("No responses meet the filter criteria.");
     res.json(filteredResponses);
   } catch (error) {
     console.error("Error in /:formId/filteredResponses endpoint: ", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
