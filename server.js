@@ -35,38 +35,40 @@ app.get("/:formId/filteredResponses", async (req, res) => {
     const apiUrl = `https://api.fillout.com/v1/api/forms/${formId}/submissions`;
 
     // don't want to throw an error if they don't enter any params, all params are optional
-    if (!req.query) {
+    const queryLength = Object.keys(req.query).length;
+    if (Object.keys(req.query).length === 0) {
       const genericResult = await axios.get(apiUrl, {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
-      res.json(genericResult);
+      res.json(genericResult.data);
+    } else {
+      const { filters, afterDate, beforeDate } = req.query;
+      const limit = req.query.limit || 150;
+      const offset = req.query.offset || 0;
+      const status = req.query.status || "finished";
+      const includeEditLink = req.query.includeEditLink || false;
+      const sort = req.query.sort || "asc";
+
+      const parsedFilters = JSON.parse(filters);
+      const response = await axios.get(apiUrl, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        params: {
+          limit,
+          afterDate,
+          beforeDate,
+          offset,
+          status,
+          includeEditLink,
+          sort,
+        },
+      });
+
+      const data = response.data;
+      const filteredResponses = applyFilters(data.responses, parsedFilters);
+      if (!filteredResponses)
+        console.log("No responses meet the filter criteria.");
+      res.json(filteredResponses);
     }
-    const { filters, afterDate, beforeDate } = req.query;
-    const limit = req.query.limit || 150;
-    const offset = req.query.offset || 0;
-    const status = req.query.status || "finished";
-    const includeEditLink = req.query.includeEditLink || false;
-    const sort = req.query.sort || "asc";
-
-    const parsedFilters = JSON.parse(filters);
-    const response = await axios.get(apiUrl, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      params: {
-        limit,
-        afterDate,
-        beforeDate,
-        offset,
-        status,
-        includeEditLink,
-        sort,
-      },
-    });
-
-    const data = response.data;
-    const filteredResponses = applyFilters(data.responses, parsedFilters);
-    if (!filteredResponses)
-      console.log("No responses meet the filter criteria.");
-    res.json(filteredResponses);
   } catch (error) {
     console.error("Error in /:formId/filteredResponses endpoint: ", error);
     res.status(500).json({ error: "Internal Server Error" });
